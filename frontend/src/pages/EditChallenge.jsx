@@ -177,6 +177,7 @@ function EditChallenge() {
                 <option value="crypto">Cryptography</option>
                 <option value="forensics">Forensics</option>
                 <option value="reverse">Reverse Engineering</option>
+                <option value="osint">OSINT</option>
                 <option value="misc">Miscellaneous</option>
               </select>
             </div>
