@@ -318,19 +318,18 @@ router.post('/login', loginLimiter, sanitizeInput, async (req, res) => {
       // Log failed login attempt
       await createLoginLog(user, req, 'failed', 'Invalid password');
       
-      // Increment login attempts with enhanced tracking
+      // Increment failed login attempts (only for wrong passwords)
       user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
       
-      // Lock account after max attempts
-      const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 3;
+      // Lock account after max attempts (10 failed attempts = 15 minute lockout)
+      const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 10;
       if (user.failedLoginAttempts >= maxAttempts) {
-        const lockTime = parseInt(process.env.LOGIN_TIMEOUT) || 30;
+        const lockTime = parseInt(process.env.LOGIN_TIMEOUT) || 15;
         user.accountLockExpires = new Date(Date.now() + lockTime * 60 * 1000);
-        logActivity('ACCOUNT_LOCKED', { userId: user._id, ip: req.ip, attempts: user.failedLoginAttempts });
+        logActivity('ACCOUNT_LOCKED', { userId: user._id, attempts: user.failedLoginAttempts });
       }
       
       await user.save();
-      await user.incrementLoginAttempts();
 
       return res.status(401).json({
         success: false,
@@ -338,14 +337,11 @@ router.post('/login', loginLimiter, sanitizeInput, async (req, res) => {
       });
     }
 
-    // Reset login attempts and update login info
+    // Reset failed login attempts on successful login (allow multiple successful logins)
     user.failedLoginAttempts = 0;
     user.accountLockExpires = undefined;
     user.lastLoginAt = new Date();
-    user.lastLoginIP = req.ip;
     await user.save();
-    
-    await user.resetLoginAttempts();
 
     // Log successful login
     await createLoginLog(user, req, 'success');
