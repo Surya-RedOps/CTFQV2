@@ -37,19 +37,16 @@ function Home() {
             <div className="feature-icon">🏆</div>
             <h3>Jeopardy Style</h3>
             <p>Task-based challenges with flags covering cryptography, web exploits, forensics, and more</p>
-            <Link to="/Login" className="feature-link">Join Events →</Link>
           </div>
           <div className="feature-card">
             <div className="feature-icon">⚔️</div>
             <h3>Attack-Defense</h3>
             <p>Teams attack and defend virtual machines in isolated environments with real-time competition</p>
-            <Link to="/events" className="feature-link">View Events →</Link>
           </div>
           <div className="feature-card">
             <div className="feature-icon">👑</div>
             <h3>King of the Hill</h3>
             <p>Compete to control servers for the longest duration in dynamic competitive environments</p>
-            <Link to="/events" className="feature-link">Compete Now →</Link>
           </div>
           {/* <div className="feature-card">
             <div className="feature-icon">🎓</div>
