@@ -41,6 +41,7 @@ import UserBlocked from './pages/UserBlocked'
 import ChallengeDetails from './pages/ChallengeDetails'
 import Notice from './pages/Notice'
 import Analytics from './pages/Analytics'
+import AdminSubmissions from './pages/AdminSubmissions'
 
 function App() {
   useEffect(() => {
@@ -160,6 +161,11 @@ function App() {
               <Route path="/admin/analytics" element={
                 <ProtectedRoute adminOnly={true}>
                   <Analytics />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/submissions" element={
+                <ProtectedRoute adminOnly={true}>
+                  <AdminSubmissions />
                 </ProtectedRoute>
               } />
               <Route path="/blocked" element={<UserBlocked />} />

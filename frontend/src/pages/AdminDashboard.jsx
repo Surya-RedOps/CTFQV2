@@ -397,6 +397,12 @@ function AdminDashboard() {
           Analytics
         </button>
         <button
+          className="tab-button"
+          onClick={() => navigate('/admin/submissions')}
+        >
+          Submissions
+        </button>
+        <button
           className={`tab-button ${activeTab === 'platform-control' ? 'active' : ''}`}
           onClick={() => navigate('/admin/platform-control')}
         >

@@ -365,4 +365,124 @@ router.get('/submissions', protect, authorize('admin', 'superadmin'), async (req
   }
 });
 
+// @route   GET /api/analytics/challenge-submissions
+// @desc    Get all challenges with their submission details
+// @access  Private/Admin
+router.get('/challenge-submissions', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const Submission = require('../models/Submission');
+    
+    const challenges = await Challenge.find()
+      .select('title category difficulty points')
+      .lean();
+
+    const challengeSubmissions = [];
+
+    for (const challenge of challenges) {
+      const submissions = await Submission.find({ challenge: challenge._id })
+        .populate('user', 'username email points')
+        .sort({ submittedAt: -1 })
+        .lean();
+
+      const successfulSubmissions = submissions.filter(s => s.isCorrect);
+      const failedSubmissions = submissions.filter(s => !s.isCorrect);
+
+      challengeSubmissions.push({
+        _id: challenge._id,
+        title: challenge.title,
+        category: challenge.category,
+        difficulty: challenge.difficulty,
+        points: challenge.points,
+        totalSubmissions: submissions.length,
+        successfulSubmissions: successfulSubmissions.length,
+        failedSubmissions: failedSubmissions.length,
+        successRate: submissions.length > 0 ? ((successfulSubmissions.length / submissions.length) * 100).toFixed(2) : 0
+      });
+    }
+
+    res.json({
+      success: true,
+      data: challengeSubmissions.sort((a, b) => b.totalSubmissions - a.totalSubmissions)
+    });
+  } catch (err) {
+    console.error('Error fetching challenge submissions:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
+  }
+});
+
+// @route   GET /api/analytics/challenge-submissions/:id
+// @desc    Get detailed submissions for a specific challenge
+// @access  Private/Admin
+router.get('/challenge-submissions/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const Submission = require('../models/Submission');
+    
+    const challenge = await Challenge.findById(req.params.id)
+      .select('title category difficulty points')
+      .lean();
+
+    if (!challenge) {
+      return res.status(404).json({
+        success: false,
+        message: 'Challenge not found'
+      });
+    }
+
+    const submissions = await Submission.find({ challenge: req.params.id })
+      .populate('user', 'username email points')
+      .sort({ submittedAt: -1 })
+      .lean();
+
+    const successfulSubmissions = submissions.filter(s => s.isCorrect).map(s => ({
+      username: s.user.username,
+      email: s.user.email,
+      userPoints: s.user.points,
+      submittedFlag: s.submittedFlag,
+      submittedAt: s.submittedAt,
+      ipAddress: s.ipAddress,
+      points: s.points
+    }));
+
+    const failedSubmissions = submissions.filter(s => !s.isCorrect).map(s => ({
+      username: s.user.username,
+      email: s.user.email,
+      userPoints: s.user.points,
+      submittedFlag: s.submittedFlag,
+      submittedAt: s.submittedAt,
+      ipAddress: s.ipAddress
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        challenge: {
+          title: challenge.title,
+          category: challenge.category,
+          difficulty: challenge.difficulty,
+          points: challenge.points
+        },
+        summary: {
+          totalSubmissions: submissions.length,
+          successfulSubmissions: successfulSubmissions.length,
+          failedSubmissions: failedSubmissions.length,
+          successRate: submissions.length > 0 ? ((successfulSubmissions.length / submissions.length) * 100).toFixed(2) : 0
+        },
+        successfulSubmissions,
+        failedSubmissions
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching challenge submission details:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
+  }
+});
+
 module.exports = router;
