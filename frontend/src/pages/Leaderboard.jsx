@@ -133,7 +133,16 @@ function Leaderboard() {
                   )}
                 </td>
                 <td className="name-column">
-                  {viewType === 'teams' ? item.name : item.username}
+                  {viewType === 'teams' ? (
+                    item.name
+                  ) : (
+                    <button 
+                      className="username-link"
+                      onClick={() => navigate(`/user/${item._id}`)}
+                    >
+                      {item.username}
+                    </button>
+                  )}
                 </td>
                 <td className="points-column">{item.points || 0}</td>
                 {viewType === 'teams' ? (

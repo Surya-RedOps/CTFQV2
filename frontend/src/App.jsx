@@ -42,6 +42,7 @@ import ChallengeDetails from './pages/ChallengeDetails'
 import Notice from './pages/Notice'
 import Analytics from './pages/Analytics'
 import AdminSubmissions from './pages/AdminSubmissions'
+import UserProfile from './pages/UserProfile'
 
 function App() {
   useEffect(() => {
@@ -106,6 +107,11 @@ function App() {
               <Route path="/leaderboard" element={
                 <ProtectedRoute>
                   <Leaderboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/user/:userId" element={
+                <ProtectedRoute>
+                  <UserProfile />
                 </ProtectedRoute>
               } />
               <Route path="/create-challenge" element={

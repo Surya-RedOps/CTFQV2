@@ -70,6 +70,24 @@
   background-color: rgba(0, 255, 170, 0.05);
 }
 
+.username-link {
+  background: none;
+  border: none;
+  color: #00ffaa;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.username-link:hover {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+  transform: scale(1.05);
+}
+
 .rank-column {
   width: 80px;
   text-align: center;
