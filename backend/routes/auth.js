@@ -611,11 +611,20 @@ router.get('/leaderboard', protect, async (req, res) => {
 // @access  Private/Admin
 router.get('/users', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    const { all } = req.query;
+    const { all, search } = req.query;
+    
+    // Build search query
+    let query = {};
+    if (search) {
+      query.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
     
     if (all === 'true') {
       // Return all users without pagination for team creation
-      const users = await User.find()
+      const users = await User.find(query)
         .select('-password')
         .populate('team', 'name')
         .sort({ username: 1 });
@@ -632,8 +641,8 @@ router.get('/users', protect, authorize('admin', 'superadmin'), async (req, res)
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const totalUsers = await User.countDocuments();
-    const users = await User.find()
+    const totalUsers = await User.countDocuments(query);
+    const users = await User.find(query)
       .select('-password')
       .populate('team', 'name')
       .limit(limit)

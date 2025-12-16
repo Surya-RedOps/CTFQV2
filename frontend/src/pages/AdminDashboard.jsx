@@ -26,6 +26,7 @@ function AdminDashboard() {
   const [challengeTotal, setChallengeTotal] = useState(0);
   const [noticeTotal, setNoticeTotal] = useState(0);
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [userSortBy, setUserSortBy] = useState('createdAt');
   const [userRoleFilter, setUserRoleFilter] = useState('all');
   const [userStatusFilter, setUserStatusFilter] = useState('all');
@@ -45,6 +46,14 @@ function AdminDashboard() {
     }
   }, [isAuthenticated, user, navigate]);
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(userSearchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [userSearchTerm]);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
@@ -59,8 +68,9 @@ function AdminDashboard() {
       };
 
       try {
+        const searchParam = debouncedSearchTerm ? `&search=${encodeURIComponent(debouncedSearchTerm)}` : '';
         const [usersRes, challengesRes, subscribersRes, teamsRes, noticesRes] = await Promise.all([
-          axios.get(`/api/auth/users?page=${userPage}&limit=${itemsPerPage}`, config),
+          axios.get(`/api/auth/users?page=${userPage}&limit=${itemsPerPage}${searchParam}`, config),
           axios.get(`/api/challenges?page=${challengePage}&limit=${itemsPerPage}`, config),
           axios.get('/api/newsletter/subscribers', config).catch(() => ({ data: [] })),
           axios.get(`/api/teams?page=${teamPage}&limit=${itemsPerPage}`, config).catch(() => ({ data: { data: [] } })),
@@ -85,7 +95,14 @@ function AdminDashboard() {
     };
 
     fetchData();
-  }, [token, userPage, teamPage, challengePage]);
+  }, [token, userPage, teamPage, challengePage, debouncedSearchTerm]);
+
+  // Reset to page 1 when search term changes
+  useEffect(() => {
+    if (debouncedSearchTerm !== '') {
+      setUserPage(1);
+    }
+  }, [debouncedSearchTerm]);
 
 
 
@@ -246,14 +263,13 @@ function AdminDashboard() {
     });
   };
 
+  // Apply client-side filtering for role and status (search is handled by backend)
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.username.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-                         u.email.toLowerCase().includes(userSearchTerm.toLowerCase());
     const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
     const matchesStatus = userStatusFilter === 'all' || 
                          (userStatusFilter === 'active' && !u.isBlocked) ||
                          (userStatusFilter === 'blocked' && u.isBlocked);
-    return matchesSearch && matchesRole && matchesStatus;
+    return matchesRole && matchesStatus;
   }).sort((a, b) => {
     switch(userSortBy) {
       case 'points':

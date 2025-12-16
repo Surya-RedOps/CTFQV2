@@ -15,6 +15,8 @@ function AdminCreateTeam() {
   });
 
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,9 +40,10 @@ function AdminCreateTeam() {
         };
 
         const res = await axios.get('/api/auth/users?all=true', config);
-        // Filter out admin users but show all users (including those with teams)
-        const allUsers = (res.data.users || []).filter(u => u.role !== 'admin');
-        setUsers(allUsers);
+        // Filter out admin users and users who already have a team
+        const availableUsers = (res.data.users || []).filter(u => u.role !== 'admin' && !u.team);
+        setUsers(availableUsers);
+        setFilteredUsers(availableUsers);
         setIsLoading(false);
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -53,6 +56,18 @@ function AdminCreateTeam() {
       fetchUsers();
     }
   }, [token]);
+
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter(user => 
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.username.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [searchTerm, users]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -186,30 +201,30 @@ function AdminCreateTeam() {
             <label htmlFor="members">
               Select Members * (1-2 members)
             </label>
+            <input
+              type="text"
+              placeholder="Search by email or username..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+              style={{ marginBottom: '10px', padding: '8px', width: '100%' }}
+            />
             <select
               id="members"
               multiple
               value={formData.members}
               onChange={handleMemberChange}
               required
-              size={Math.min(users.length, 6)}
+              size={Math.min(filteredUsers.length || 6, 6)}
             >
-              {users.map(u => (
-                <option 
-                  key={u._id} 
-                  value={u._id}
-                  disabled={u.team && !formData.members.includes(u._id)}
-                  style={{
-                    color: u.team ? '#888' : '#fff',
-                    fontStyle: u.team ? 'italic' : 'normal'
-                  }}
-                >
-                  {u.username} ({u.email}){u.team ? ' - Already in team' : ''}
+              {filteredUsers.map(u => (
+                <option key={u._id} value={u._id}>
+                  {u.username} ({u.email})
                 </option>
               ))}
             </select>
             <span className="form-hint">
-              Hold Ctrl/Cmd to select/deselect multiple users
+              Hold Ctrl/Cmd to select/deselect multiple users. {filteredUsers.length} users available.
             </span>
           </div>
 
