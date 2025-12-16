@@ -25,6 +25,22 @@ router.post('/', protect, authorize('admin', 'superadmin'), async (req, res) => 
       });
     }
 
+    // Validate member IDs exist and are valid users
+    if (members && members.length > 0) {
+      const validMembers = await User.find({ 
+        _id: { $in: members },
+        role: 'user',
+        team: { $exists: false }
+      });
+      
+      if (validMembers.length !== members.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more selected users are invalid or already in a team'
+        });
+      }
+    }
+
     const team = await Team.create({
       name,
       description,

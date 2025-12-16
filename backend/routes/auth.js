@@ -666,10 +666,21 @@ router.get('/users', protect, authorize('admin', 'superadmin'), async (req, res)
 });
 
 // @route   GET /api/auth/users/:id
-// @desc    Get single user by ID (admin only)
+// @desc    Get single user by ID (admin only or own profile)
 // @access  Private/Admin
-router.get('/users/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+router.get('/users/:id', protect, async (req, res) => {
   try {
+    // Allow users to view their own profile or admins to view any profile
+    const isOwnProfile = req.user.id === req.params.id;
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    
+    if (!isOwnProfile && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only view your own profile.'
+      });
+    }
+
     const user = await User.findById(req.params.id).select('-password');
 
     if (!user) {
@@ -686,7 +697,7 @@ router.get('/users/:id', protect, authorize('admin', 'superadmin'), async (req, 
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Error fetching user'
+      message: 'Error fetching user'
     });
   }
 });

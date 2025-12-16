@@ -58,7 +58,10 @@ app.use(securityLogger);
 // Advanced security headers
 app.use(advancedHelmet);
 
-// Rate limiting disabled - allow unlimited requests
+// Rate limiting enabled for security
+app.use('/api/auth/login', strictLoginLimiter);
+app.use('/api/challenges/submit', challengeSubmitLimiter);
+app.use('/api/', apiLimiter);
 
 // CORS with development-friendly configuration
 const corsOptions = {
@@ -76,7 +79,7 @@ const corsOptions = {
     if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
       callback(null, true);
     } else {
-      callback(null, true); // Allow all for development
+      callback(new Error('Not allowed by CORS'), false);
     }
   },
   credentials: process.env.CORS_CREDENTIALS === 'true',
@@ -217,13 +220,25 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/notices', noticeRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
-// Serve static files from uploads directory with proper security headers
-app.use('/uploads', (req, res, next) => {
+// Enhanced security headers middleware
+app.use((req, res, next) => {
+  // Prevent MIME type sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Prevent clickjacking
   res.setHeader('X-Frame-Options', 'DENY');
+  // XSS protection
   res.setHeader('X-XSS-Protection', '1; mode=block');
+  // HSTS for HTTPS
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+  // Content Security Policy
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:;");
   next();
-}, express.static(path.join(__dirname, 'uploads')));
+});
+
+// Serve static files from uploads directory with proper security headers
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -276,11 +291,23 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // Default error
+  // Default error - never expose internal details in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Log full error details server-side
+  console.error('Server Error:', {
+    message: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+  
   res.status(err.status || 500).json({
     success: false,
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    message: isProduction ? 'Internal server error' : err.message,
+    error: isProduction ? undefined : err.stack
   });
 });
 

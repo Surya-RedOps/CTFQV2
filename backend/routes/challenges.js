@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const { sanitizeInput, validateInput, securityHeaders } = require('../middleware/security');
 const requestIp = require('request-ip');
 const UAParser = require('ua-parser-js');
+const crypto = require('crypto');
 
 // In-memory store for flag submission attempts
 const flagSubmissionAttempts = new Map();
@@ -248,8 +249,21 @@ router.post('/:id/submit', protect, sanitizeInput, async (req, res) => {
     const clientIp = requestIp.getClientIp(req);
     const userAgent = req.get('User-Agent') || 'Unknown';
     
-    // Check flag
-    const isCorrect = submittedFlag === challenge.flag.trim();
+    // Check flag using constant-time comparison to prevent timing attacks
+    const expectedFlag = challenge.flag.trim();
+    const submittedBuffer = Buffer.from(submittedFlag, 'utf8');
+    const expectedBuffer = Buffer.from(expectedFlag, 'utf8');
+    
+    // Ensure buffers are same length to prevent timing attacks
+    const maxLength = Math.max(submittedBuffer.length, expectedBuffer.length);
+    const paddedSubmitted = Buffer.alloc(maxLength);
+    const paddedExpected = Buffer.alloc(maxLength);
+    
+    submittedBuffer.copy(paddedSubmitted);
+    expectedBuffer.copy(paddedExpected);
+    
+    const isCorrect = crypto.timingSafeEqual(paddedSubmitted, paddedExpected) && 
+                     submittedFlag.length === expectedFlag.length;
     
     // Create submission record (both success and failure)
     await Submission.create({
@@ -275,21 +289,31 @@ router.post('/:id/submit', protect, sanitizeInput, async (req, res) => {
     // Clear rate limiting attempts on successful submission
     clearSubmissionAttempts(req.user.id, challenge._id);
 
-    // Update user with solve time
-    await User.findByIdAndUpdate(
-      req.user.id,
-      {
-        $addToSet: { solvedChallenges: challenge._id },
-        $inc: { points: challenge.points },
-        $set: { lastSolveTime: new Date() }
-      }
-    );
+    // Use transaction for atomic operations to prevent race conditions
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        // Update user with solve time
+        await User.findByIdAndUpdate(
+          req.user.id,
+          {
+            $addToSet: { solvedChallenges: challenge._id },
+            $inc: { points: challenge.points },
+            $set: { lastSolveTime: new Date() }
+          },
+          { session }
+        );
 
-    // Update challenge
-    await Challenge.findByIdAndUpdate(
-      req.params.id,
-      { $addToSet: { solvedBy: req.user.id } }
-    );
+        // Update challenge
+        await Challenge.findByIdAndUpdate(
+          req.params.id,
+          { $addToSet: { solvedBy: req.user.id } },
+          { session }
+        );
+      });
+    } finally {
+      await session.endSession();
+    }
 
     logActivity('FLAG_SUBMITTED_SUCCESS', {
       userId: req.user.id,
