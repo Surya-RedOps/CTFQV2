@@ -303,7 +303,7 @@ router.post('/register-admin', protect, authorize('admin', 'superadmin'), async 
 // @route   POST /api/auth/login
 // @desc    Login user
 // @access  Public
-router.post('/login', loginLimiter, sanitizeInput, async (req, res) => {
+router.post('/login', sanitizeInput, async (req, res) => {
   try {
     const { email, password } = req.body;
     
@@ -330,15 +330,7 @@ router.post('/login', loginLimiter, sanitizeInput, async (req, res) => {
       });
     }
 
-    // Check if account is locked (exclude admin accounts from locking)
-    if (user.isLocked() && user.role !== 'admin') {
-      await createLoginLog(user, req, 'failed', 'Account locked');
-      
-      return res.status(401).json({
-        success: false,
-        message: 'Account is locked. Please try again later'
-      });
-    }
+    // Account locking disabled - allow all login attempts
 
     // Check if user is blocked by admin
     if (user.isBlocked) {
@@ -356,23 +348,8 @@ router.post('/login', loginLimiter, sanitizeInput, async (req, res) => {
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
-      // Log failed login attempt
+      // Log failed login attempt but don't block account
       await createLoginLog(user, req, 'failed', 'Invalid password');
-      
-      // Increment failed login attempts (only for wrong passwords, exclude admin accounts)
-      if (user.role !== 'admin') {
-        user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
-        
-        // Lock account after max attempts (10 failed attempts = 15 minute lockout)
-        const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 10;
-        if (user.failedLoginAttempts >= maxAttempts) {
-          const lockTime = parseInt(process.env.LOGIN_TIMEOUT) || 15;
-          user.accountLockExpires = new Date(Date.now() + lockTime * 60 * 1000);
-          logActivity('ACCOUNT_LOCKED', { userId: user._id, attempts: user.failedLoginAttempts });
-        }
-        
-        await user.save();
-      }
 
       return res.status(401).json({
         success: false,
@@ -380,9 +357,7 @@ router.post('/login', loginLimiter, sanitizeInput, async (req, res) => {
       });
     }
 
-    // Reset failed login attempts on successful login (allow multiple successful logins)
-    user.failedLoginAttempts = 0;
-    user.accountLockExpires = undefined;
+    // Update last login time
     user.lastLoginAt = new Date();
     await user.save();
 

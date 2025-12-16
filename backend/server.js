@@ -58,10 +58,7 @@ app.use(securityLogger);
 // Advanced security headers
 app.use(advancedHelmet);
 
-// Rate limiting
-app.use('/api/auth/login', strictLoginLimiter);
-app.use('/api/challenges/submit', challengeSubmitLimiter);
-app.use('/api/', apiLimiter);
+// Rate limiting disabled - allow unlimited requests
 
 // CORS with development-friendly configuration
 const corsOptions = {
