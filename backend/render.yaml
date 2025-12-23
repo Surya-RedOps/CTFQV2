@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: pwnGrid-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: mongodb+srv://user:user@db.urcwnqc.mongodb.net/?appName=db
+      - key: JWT_SECRET
+        value: pwnGrid-super-secure-jwt-secret-key-production-2024-minimum-32-chars
+      - key: SESSION_SECRET
+        value: pwnGrid-super-secure-session-secret-key-production-2024-minimum-32-chars
+      - key: CORS_ORIGIN
+        value: "*"
