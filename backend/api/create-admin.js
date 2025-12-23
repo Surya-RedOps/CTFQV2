@@ -11,15 +11,17 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-const createAdmin = async () => {
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Connected to MongoDB');
     
     const adminExists = await User.findOne({ email: 'admin@ctfquest.com' });
     if (adminExists) {
-      console.log('Admin already exists');
-      process.exit(0);
+      return res.status(200).json({ message: 'Admin already exists' });
     }
 
     const hashedPassword = await bcrypt.hash('Admin123!', 12);
@@ -33,16 +35,18 @@ const createAdmin = async () => {
     });
 
     await admin.save();
-    console.log('✅ Admin created successfully!');
-    console.log('📧 Email: admin@ctfquest.com');
-    console.log('🔑 Password: Admin123!');
+    
+    res.status(200).json({ 
+      message: 'Admin created successfully',
+      credentials: {
+        email: 'admin@ctfquest.com',
+        password: 'Admin123!'
+      }
+    });
     
   } catch (error) {
-    console.error('❌ Error creating admin:', error);
+    res.status(500).json({ message: 'Error creating admin', error: error.message });
   } finally {
     mongoose.disconnect();
-    process.exit(0);
   }
 };
-
-createAdmin();

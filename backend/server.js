@@ -44,7 +44,7 @@ const analyticsRoutes = require('./routes/analytics');
 
 // Initialize express app
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 // Trust proxy for accurate IP addresses
 app.set('trust proxy', 1);
@@ -367,12 +367,20 @@ mongoose.connect(MONGODB_URI, mongoOptions)
 // Export for Vercel serverless
 module.exports = app;
 
-// Start server only in development
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-    console.log(`Server accessible at http://localhost:${PORT}`);
+// Start server for Render/local development
+if (process.env.NODE_ENV !== 'vercel') {
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
     console.log(`MongoDB connection pool configured for ${mongoOptions.maxPoolSize} concurrent connections`);
+  });
+  
+  // Handle server shutdown gracefully
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    server.close(() => {
+      mongoose.connection.close();
+      process.exit(0);
+    });
   });
 }
 })
