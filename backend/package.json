@@ -15,7 +15,8 @@
     "health": "curl http://localhost:5000/api/health",
     "startup-check": "node scripts/startup.js",
     "start:safe": "npm run startup-check && npm start",
-    "dev:safe": "npm run startup-check && npm run dev"
+    "dev:safe": "npm run startup-check && npm run dev",
+    "create-prod-admin": "node createProdAdmin.js"
   },
   "keywords": [],
   "author": "",
